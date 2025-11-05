@@ -24,7 +24,7 @@ services:
         condition: service_healthy
     environment:
       DEBUG: "0"
-      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
@@ -32,8 +32,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - static:/app/staticfiles
-      - media:/app/media
+      # Use host bind mounts if provided via env; fallback to named volumes for local dev
+      - ${STATIC_MOUNT:-static}:/app/staticfiles
+      - ${MEDIA_MOUNT:-media}:/app/media
     restart: always
 
   # nginx:

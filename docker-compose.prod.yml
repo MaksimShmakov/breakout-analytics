@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  web:
+    volumes:
+      - type: bind
+        source: ${STATIC_MOUNT}
+        target: /app/staticfiles
+      - type: bind
+        source: ${MEDIA_MOUNT}
+        target: /app/media
