@@ -98,6 +98,48 @@
     </form>
   </div>
 </div>
+
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Импорт CSV</h5>
+    <span class="badge text-bg-secondary text-uppercase small">CSV</span>
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'import_tags_csv' branch.id %}" enctype="multipart/form-data" class="row g-3 align-items-end">
+      {% csrf_token %}
+      <div class="col-md-8">
+        <label class="form-label">CSV-файл</label>
+        {{ import_form.file|add_class:"form-control" }}
+      </div>
+      <div class="col-md-4 text-end">
+        <button type="submit" class="btn btn-outline-primary mt-md-4">Импортировать метки</button>
+      </div>
+    </form>
+    <p class="text-muted small mt-3 mb-2">
+      Файл должен содержать пять столбцов (в первой строке заголовки): {{ import_columns|join:", " }}.
+    </p>
+    <div class="table-responsive small">
+      <table class="table table-sm table-bordered align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            {% for column in import_columns %}
+            <th class="text-uppercase">{{ column }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {% for column in import_columns %}
+            <td class="text-muted">пример_{{ forloop.counter }}</td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
 {% endblock %}
 
 {% block extra_scripts %}

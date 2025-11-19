@@ -6,16 +6,19 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import login
 from datetime import datetime, timedelta
+from django.db import transaction
 from django.db.models import Sum
 from decimal import Decimal
 import json
+import csv
+import io
 import openpyxl
 from openpyxl.styles import Font, Alignment
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 from .models import Bot, Branch, Tag, Product, PlanMonthly, Funnel, TrafficReport, PatchNote
-from .forms import BotForm, BranchForm, TagForm, CustomUserCreationForm
+from .forms import BotForm, BranchForm, TagForm, CustomUserCreationForm, TagImportForm
 from .permissions import require_roles
 
 
@@ -385,7 +388,20 @@ def tags_list(request, branch_id):
     else:
         form = TagForm()
 
-    return render(request, "marks/tags_list.html", {"branch": branch, "tags": tags, "form": form, "has_copied": has_copied})
+    import_form = TagImportForm()
+
+    return render(
+        request,
+        "marks/tags_list.html",
+        {
+            "branch": branch,
+            "tags": tags,
+            "form": form,
+            "has_copied": has_copied,
+            "import_form": import_form,
+            "import_columns": TagImportForm.EXPECTED_COLUMNS,
+        },
+    )
 
 
 # ---------- Редактирование метки ----------
@@ -432,7 +448,66 @@ def paste_tags(request, branch_id):
     return redirect("tags_list", branch_id=branch.id)
 
 
-# ---------- Дублирование одной метки ----------
+# ---------- Импорт CSV меток ----------
+
+@login_required
+@require_POST
+@require_roles('admin', 'manager', 'marketer')
+def import_tags_csv(request, branch_id):
+    branch = get_object_or_404(Branch, id=branch_id)
+    form = TagImportForm(request.POST, request.FILES)
+    if not form.is_valid():
+        for field_errors in form.errors.values():
+            for error in field_errors:
+                messages.error(request, error)
+        return redirect("tags_list", branch_id=branch.id)
+
+    uploaded = form.cleaned_data["file"]
+    uploaded.seek(0)
+    expected = TagImportForm.EXPECTED_COLUMNS
+
+    try:
+        decoded = uploaded.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        messages.error(request, "Файл не прочитан в UTF-8.")
+        return redirect("tags_list", branch_id=branch.id)
+
+    reader = csv.DictReader(io.StringIO(decoded))
+    headers = [(h or "").strip() for h in (reader.fieldnames or [])]
+    if headers != expected:
+        messages.error(
+            request,
+            "Структура CSV не подходит. Нужны столбцы: "
+            + ", ".join(expected),
+        )
+        return redirect("tags_list", branch_id=branch.id)
+
+    created = 0
+    try:
+        with transaction.atomic():
+            for row in reader:
+                if not any((row.get(col) or "").strip() for col in expected):
+                    continue
+                tag_kwargs = {
+                    col: (row.get(col) or "").strip() or None
+                    for col in expected
+                }
+                Tag.objects.create(branch=branch, **tag_kwargs)
+                created += 1
+    except csv.Error as exc:
+        messages.error(request, f"Ошибка CSV: {exc}")
+        return redirect("tags_list", branch_id=branch.id)
+    except Exception as exc:
+        messages.error(request, f"Ошибка при импорте: {exc}")
+        return redirect("tags_list", branch_id=branch.id)
+
+    if created:
+        messages.success(request, f"Метки добавлены: {created}.")
+    else:
+        messages.warning(request, "Подходящих строк в файле не нашлось.")
+    return redirect("tags_list", branch_id=branch.id)
+
+# ---------- Дублирование �?��'�?�� ----------
 @login_required
 @require_roles('admin', 'manager', 'marketer')
 def duplicate_tag(request, tag_id):

@@ -75,3 +75,17 @@ class TagForm(forms.ModelForm):
         model = Tag
         fields = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
 
+
+class TagImportForm(forms.Form):
+    EXPECTED_COLUMNS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
+    file = forms.FileField(
+        label="CSV �?�?�?�?",
+        help_text="�?�����?��?��? CSV �?�?�?�? �?" + ", ".join(EXPECTED_COLUMNS),
+    )
+
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        if not uploaded.name.lower().endswith(".csv"):
+            raise forms.ValidationError("?�?�?�?�? �� ����? CSV.")
+        return uploaded
+

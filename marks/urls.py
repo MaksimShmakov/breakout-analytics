@@ -44,6 +44,7 @@ urlpatterns = [
     path("tag/<int:tag_id>/duplicate/", views.duplicate_tag, name="duplicate_tag"),
     path("branch/<int:branch_id>/copy/", views.copy_tags, name="copy_tags"),
     path("branch/<int:branch_id>/paste/", views.paste_tags, name="paste_tags"),
+    path("branch/<int:branch_id>/import/", views.import_tags_csv, name="import_tags_csv"),
     path("branch/<int:branch_id>/duplicate_all/", views.duplicate_all_tags, name="duplicate_all_tags"),
     path("api/bot/<str:bot_name>/", views.bot_api, name="bot_api"),
 
