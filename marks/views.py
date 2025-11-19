@@ -329,6 +329,7 @@ def bot_api(request, bot_name):
         "utm_term",
         "utm_content",
     ]
+    utm_fields = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
     tag_filters = {
         field: request.GET.get(field)
         for field in filterable_fields
@@ -353,6 +354,10 @@ def bot_api(request, bot_name):
                 "url",
             )
         )
+        for tag in tags_payload:
+            for field in utm_fields:
+                if not tag.get(field):
+                    tag[field] = "None"
 
         if tag_filters:
             filtered_tags.extend(tags_payload)
