@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_breakout:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -17,67 +17,41 @@ services:
 
   web:
     build: .
-    ports:
-      - "8082:8000"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DEBUG: "0"
+      DEBUG: ${DEBUG}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      POSTGRES_HOST: db
-      POSTGRES_PORT: "5432"
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      # Use host bind mounts if provided via env; fallback to named volumes for local dev
-      - ${STATIC_MOUNT:-static}:/app/staticfiles
-      - ${MEDIA_MOUNT:-media}:/app/media
+      - static_breakout:/app/staticfiles
+      - media_breakout:/app/media
     restart: always
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000"
 
-  # nginx:
-  #   image: nginx:1.27-alpine
-  #   depends_on:
-  #     - web
-  #   ports:
-  #     - "8080:80"
-  #     - "8443:443"
-  #   volumes:
-  #     - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./docker/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-  #     - ./docker/nginx-entrypoint.sh:/docker-entrypoint.sh:ro
-  #     - static:/static:ro
-  #     - media:/media:ro
-  #     - letsencrypt:/etc/letsencrypt
-  #     - certbot-www:/var/www/certbot
-  #   environment:
-  #     - DOMAIN=${DOMAIN}
-  #   entrypoint: ["/docker-entrypoint.sh"]
-  #   restart: always
-
-  # Автообновление контейнеров, если образы обновились в реестре
-  watchtower:
-    image: containrrr/watchtower
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - web
+    ports:
+      - "8083:80"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --cleanup --interval 30
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static:/static:ro
+      - media:/media:ro
     restart: always
-
-  certbot:
-    image: certbot/certbot:latest
-    volumes:
-      - letsencrypt:/etc/letsencrypt
-      - certbot-www:/var/www/certbot
-    entrypoint: ["/bin/sh","-c"]
-    # Renew certificates twice a day (initial issuance выполняется вручную командой ниже)
-    command: "while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done"
-    restart: unless-stopped
 
 volumes:
-  pgdata:
-  static:
-  media:
-  letsencrypt:
-  certbot-www:
+  pgdata_breakout:
+  static_breakout:
+  media_breakout:
