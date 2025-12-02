@@ -126,6 +126,6 @@ LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://automarks.tw1.ru",
-    "https://www.automarks.tw1.ru"
+    "https://breakout-analytics.servegame.com",
+    "https://www.breakout-analytics.servegame.com"
 ]
